@@ -11,12 +11,16 @@ QueueStatus = Literal["waiting", "called", "seated", "cancelled"]
 PaymentStatus = Literal["pending", "paid", "failed", "refunded"]
 
 
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+
 class UserCreate(BaseModel):
-    name: str
-    email: str
-    password: str = Field(min_length=6)
-    phone: str | None = None
-    address: str | None = None
+    name: str = Field(min_length=1, max_length=80)
+    email: str = Field(max_length=254, pattern=EMAIL_PATTERN)
+    # bcrypt reads at most 72 bytes; longer passwords are refused rather than silently cut.
+    password: str = Field(min_length=8, max_length=72)
+    phone: str | None = Field(default=None, max_length=32)
+    address: str | None = Field(default=None, max_length=200)
 
 
 class UserRead(BaseModel):
@@ -31,18 +35,8 @@ class UserRead(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-class LoginResponse(BaseModel):
-    token: str
-    id: int
-    name: str
-    email: str
-    role: Role
-    phone: str | None = None
-    address: str | None = None
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=128)
 
 
 class ProductCreate(BaseModel):

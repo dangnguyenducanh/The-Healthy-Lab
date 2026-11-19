@@ -98,7 +98,7 @@ def build_food_lab_item(selection: FoodLabCustomSelection, quantity: int) -> Bui
     _merge_ingredients(inventory_needs, protein["ingredients"])
     _merge_ingredients(inventory_needs, dressing["ingredients"])
 
-    for extra_id, extra in extras:
+    for _extra_id, extra in extras:
         unit_price += extra["price_delta"]
         _merge_ingredients(inventory_needs, extra["ingredients"])
 

@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta
+import os
 
 from sqlalchemy.orm import Session
 
 from auth import hash_password
+from config import IS_PROD
 from database import create_db_and_tables, engine
 from models import (
     Ingredient,
+    LoginAttempt,
     InventoryLot,
     Membership,
     Notification,
@@ -17,6 +20,7 @@ from models import (
     Product,
     QueueEntry,
     RecipeItem,
+    RefreshToken,
     Reservation,
     RestaurantTable,
     StaffProfile,
@@ -26,11 +30,20 @@ from models import (
 )
 
 
+# Demo accounts share one password. Locally it is password123; a deployed database must be seeded
+# with SEED_PASSWORD set, so the public demo never has guessable staff logins.
+DEMO_PASSWORD = os.getenv("SEED_PASSWORD", "")
+if not DEMO_PASSWORD:
+    if IS_PROD:
+        raise RuntimeError("Set SEED_PASSWORD to seed a production database")
+    DEMO_PASSWORD = "password123"
+
+
 USERS = [
     {
         "name": "Admin",
         "email": "admin@healthylab.test",
-        "password": "password123",
+        "password": DEMO_PASSWORD,
         "role": "admin",
         "phone": "0900000001",
         "address": "The Healthy Lab Office",
@@ -38,7 +51,7 @@ USERS = [
     {
         "name": "Chef",
         "email": "chef@healthylab.test",
-        "password": "password123",
+        "password": DEMO_PASSWORD,
         "role": "chef",
         "phone": "0900000002",
         "address": "The Healthy Lab Kitchen",
@@ -46,7 +59,7 @@ USERS = [
     {
         "name": "Delivery",
         "email": "delivery@healthylab.test",
-        "password": "password123",
+        "password": DEMO_PASSWORD,
         "role": "delivery",
         "phone": "0900000003",
         "address": "The Healthy Lab Delivery Desk",
@@ -54,7 +67,7 @@ USERS = [
     {
         "name": "Cashier",
         "email": "cashier@healthylab.test",
-        "password": "password123",
+        "password": DEMO_PASSWORD,
         "role": "cashier",
         "phone": "0900000005",
         "address": "The Healthy Lab Front Desk",
@@ -62,7 +75,7 @@ USERS = [
     {
         "name": "Customer",
         "email": "customer@healthylab.test",
-        "password": "password123",
+        "password": DEMO_PASSWORD,
         "role": "customer",
         "phone": "0900000004",
         "address": "123 Green Street",
@@ -97,16 +110,16 @@ VOUCHERS = [
 
 
 PRODUCTS = [
-    ("Avocado Quinoa Bowl", "bowls", "Quinoa, avocado, chickpeas, greens, and lemon tahini.", 8.50, 520, "assets/images/food-menu-1.png"),
-    ("Salmon Power Bowl", "bowls", "Grilled salmon, brown rice, edamame, cucumber, and sesame.", 10.90, 610, "assets/images/food-menu-2.png"),
-    ("Chicken Protein Bowl", "bowls", "Grilled chicken, sweet potato, broccoli, and herb sauce.", 9.50, 580, "assets/images/food-menu-3.png"),
-    ("Garden Wrap", "wraps", "Whole-grain wrap with hummus, cucumber, carrot, and greens.", 6.80, 390, "assets/images/food-menu-4.png"),
-    ("Turkey Avocado Wrap", "wraps", "Turkey breast, avocado, tomato, greens, and yogurt sauce.", 7.90, 430, "assets/images/food-menu-5.png"),
-    ("Rainbow Salad", "salads", "Mixed greens, beetroot, tomato, cucumber, radish, and seeds.", 6.50, 310, "assets/images/food-menu-6.png"),
-    ("Greek Chickpea Salad", "salads", "Chickpeas, cucumber, tomato, olives, feta, and herbs.", 7.20, 360, "assets/images/promo-4.png"),
-    ("Berry Protein Smoothie", "smoothies", "Berries, banana, almond milk, and plant protein.", 5.90, 280, "assets/images/promo-2.png"),
-    ("Green Detox Smoothie", "smoothies", "Spinach, apple, cucumber, lemon, and ginger.", 5.50, 220, "assets/images/promo-3.png"),
-    ("Cold Pressed Orange Juice", "juices", "Fresh orange juice pressed daily.", 4.20, 160, "assets/images/promo-1.png"),
+    ("Avocado Quinoa Bowl", "bowls", "Quinoa, avocado, chickpeas, greens, and lemon tahini.", 8.50, 520, "/images/food-menu-1.png"),
+    ("Salmon Power Bowl", "bowls", "Grilled salmon, brown rice, edamame, cucumber, and sesame.", 10.90, 610, "/images/food-menu-2.png"),
+    ("Chicken Protein Bowl", "bowls", "Grilled chicken, sweet potato, broccoli, and herb sauce.", 9.50, 580, "/images/food-menu-3.png"),
+    ("Garden Wrap", "wraps", "Whole-grain wrap with hummus, cucumber, carrot, and greens.", 6.80, 390, "/images/food-menu-4.png"),
+    ("Turkey Avocado Wrap", "wraps", "Turkey breast, avocado, tomato, greens, and yogurt sauce.", 7.90, 430, "/images/food-menu-5.png"),
+    ("Rainbow Salad", "salads", "Mixed greens, beetroot, tomato, cucumber, radish, and seeds.", 6.50, 310, "/images/food-menu-6.png"),
+    ("Greek Chickpea Salad", "salads", "Chickpeas, cucumber, tomato, olives, feta, and herbs.", 7.20, 360, "/images/promo-4.png"),
+    ("Berry Protein Smoothie", "smoothies", "Berries, banana, almond milk, and plant protein.", 5.90, 280, "/images/promo-2.png"),
+    ("Green Detox Smoothie", "smoothies", "Spinach, apple, cucumber, lemon, and ginger.", 5.50, 220, "/images/promo-3.png"),
+    ("Cold Pressed Orange Juice", "juices", "Fresh orange juice pressed daily.", 4.20, 160, "/images/promo-1.png"),
 ]
 
 
@@ -140,6 +153,8 @@ def seed():
         session.query(Voucher).delete()
         session.query(Membership).delete()
         session.query(Product).delete()
+        session.query(RefreshToken).delete()
+        session.query(LoginAttempt).delete()
         session.query(User).delete()
         session.commit()
 

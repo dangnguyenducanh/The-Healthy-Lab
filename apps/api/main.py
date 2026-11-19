@@ -1,7 +1,10 @@
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import create_db_and_tables
+from config import ALLOWED_ORIGINS, IS_PROD
+from database import IS_SQLITE, create_db_and_tables
 from routers.admin import router as admin_router
 from routers.auth import router as auth_router
 from routers.inventory import router as inventory_router
@@ -14,7 +17,7 @@ from routers.restaurant import router as restaurant_router
 # Compatibility re-exports for scripts/tests that still import handlers/helpers from main.py.
 from database import get_session
 from routers.admin import admin_summary, create_staff_profile, list_staff, list_users, list_vouchers, my_membership
-from routers.auth import build_login_response, login, me, register
+from routers.auth import login, logout, me, refresh, register
 from routers.inventory import (
     create_ingredient,
     create_inventory_lot,
@@ -59,25 +62,56 @@ from services.payments import PAYMENT_RECONCILE_ROLES, validate_payment, validat
 from services.reservations import find_table_for_reservation
 
 
-app = FastAPI(title="The Healthy Lab API", version="1.0.0")
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Local SQLite builds its tables on start; Postgres is created once by seed.py, never on a cold start.
+    if IS_SQLITE:
+        create_db_and_tables()
+    yield
+
+
+app = FastAPI(
+    title="The Healthy Lab API",
+    version="2.0.0",
+    lifespan=lifespan,
+    docs_url=None if IS_PROD else "/docs",
+    redoc_url=None,
+    openapi_url=None if IS_PROD else "/openapi.json",
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
 
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+    "Cache-Control": "no-store",
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+}
 
-@app.on_event("startup")
-def on_startup():
-    create_db_and_tables()
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path in ("/docs", "/openapi.json"):
+        return response  # Swagger UI needs its own scripts; it only exists outside production
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
 
 
 @app.get("/")
+@app.get("/health")
 def health_check():
-    return {"message": "The Healthy Lab API is running", "docs": "/docs"}
+    return {"status": "ok"}
+
 
 app.include_router(auth_router)
 app.include_router(products_router)

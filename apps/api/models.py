@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, true
 
-from .session import Base
+from database import Base
 
 
 ROLES = ["customer", "chef", "delivery", "cashier", "staff", "admin"]
@@ -22,6 +22,30 @@ class User(Base):
     role = Column(String, default="customer", index=True, nullable=False)
     phone = Column(String, nullable=True)
     address = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True, server_default=true(), nullable=False)
+
+
+class RefreshToken(Base):
+    """One row per issued refresh token; only a hash of its jti is kept."""
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    jti_hash = Column(String(64), unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    revoked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class LoginAttempt(Base):
+    """A failed sign-in; counted per email to lock out password guessing."""
+
+    __tablename__ = "login_attempts"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String, index=True, nullable=False)
+    created_at = Column(DateTime, index=True, nullable=False)
 
 
 class Product(Base):
