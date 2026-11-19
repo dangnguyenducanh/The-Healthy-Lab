@@ -10,18 +10,18 @@ deploy first, old `frontend/` and `tools/` removed (git history keeps them).
 ```
 .
 ├── apps/
-│   ├── web/                          Next.js 15 · App Router · TypeScript · React 19
+│   ├── web/                          Next.js 16 · App Router · TypeScript · React 19
 │   │   ├── app/
 │   │   │   ├── (site)/               public site: fixed nav + footer.closing
 │   │   │   │   ├── page.tsx                  /                 home (place page)
 │   │   │   │   ├── menu/                     /menu             full menu from the API, add to cart
-│   │   │   │   ├── food-lab/[kind]/          /food-lab/bowl|wrap|salad|smoothie|juice
+│   │   │   │   ├── food-lab/                 /food-lab         build your own (server-priced)
 │   │   │   │   ├── cart/                     /cart             cart and checkout
 │   │   │   │   ├── orders/                   /orders           my order history (signed in)
 │   │   │   │   ├── reservations/             /reservations     book a table, virtual queue
 │   │   │   │   ├── journal/ + [slug]/        /journal          articles (static content)
 │   │   │   │   └── privacy/, terms/
-│   │   │   ├── (auth)/login, register/       sign in, create account
+│   │   │   │   ├── login/, register/         sign in, create account
 │   │   │   ├── dashboard/                    staff app: role-guarded layout + sidebar
 │   │   │   │   ├── admin/  kitchen/  cashier/  delivery/  staff/
 │   │   │   ├── layout.tsx  globals.css  not-found.tsx
@@ -29,7 +29,7 @@ deploy first, old `frontend/` and `tools/` removed (git history keeps them).
 │   │   ├── lib/          api.ts (fetch + refresh)  auth.tsx  cart.tsx  site.ts (facts)  journal.ts
 │   │   ├── styles/kit/   design system CSS (tasteskill system, layout, motion, cards)
 │   │   ├── public/images/
-│   │   ├── middleware.ts             redirects signed-out visitors away from /dashboard and /orders
+│   │   ├── proxy.ts                  per-request CSP nonce; signed-out visitors leave /dashboard, /orders
 │   │   └── next.config.ts            /api rewrite, security headers, image config
 │   └── api/                          FastAPI · SQLAlchemy 2 · Postgres (SQLite locally)
 │       ├── main.py                   app + middleware; Vercel's FastAPI entrypoint (`app`)
@@ -37,7 +37,7 @@ deploy first, old `frontend/` and `tools/` removed (git history keeps them).
 │       ├── database.py  models.py  schemas.py  pagination.py
 │       ├── auth.py                   JWT, cookies, password hashing, role guards
 │       ├── routers/  services/
-│       ├── scripts/seed.py
+│       ├── seed.py                   creates the tables and demo data
 │       ├── tests/
 │       └── requirements.txt  .python-version
 ├── docs/PLAN.md                      this file
@@ -50,7 +50,7 @@ deploy first, old `frontend/` and `tools/` removed (git history keeps them).
 
 | Layer | Choice | Why |
 |---|---|---|
-| Web | Next.js 15 App Router, TypeScript, React 19 | Vercel-native, server components for content pages, client components for cart, builder, dashboards |
+| Web | Next.js 16 App Router, TypeScript, React 19 | Vercel-native, server components for content pages, client components for cart, builder, dashboards |
 | Styling | The tasteskill design system (`styles/kit`) as global CSS + page CSS modules | one token set, grid, type and button system across site and dashboards; no CSS framework |
 | Fonts | `next/font/google`: Source Serif 4 (display) + Libre Franklin (text) | self-hosted at build, no layout shift, CSP keeps `font-src 'self'` |
 | Images | `next/image` | the 45 MB of PNGs are resized and served as AVIF/WebP per width |
@@ -64,7 +64,7 @@ deploy first, old `frontend/` and `tools/` removed (git history keeps them).
 ## 3. API
 
 Base path: the browser calls `/api/...` on the web origin; the web rewrites it to the API project.
-All bodies JSON. Lists take `?page=&page_size=` (see `pagination.py`).
+All bodies JSON. Lists are plain arrays with `?limit=Lists take `?page=&page_size=` (see `pagination.py`)offset=` (limit 1 to 200, see `pagination.py`).
 
 | Area | Endpoints | Who |
 |---|---|---|
@@ -82,7 +82,7 @@ All bodies JSON. Lists take `?page=&page_size=` (see `pagination.py`).
 Roles: `customer`, `staff`, `chef`, `cashier`, `delivery`, `admin`; every staff route checks its
 roles on the server, the dashboards only hide what the API would refuse anyway.
 
-Later, not in this pass: Alembic migrations (the schema is created once by `scripts/seed.py`), a
+Later, not in this pass: Alembic migrations (the schema is created once by `seed.py`), a
 real payment provider (payments are recorded, not charged), e-mail verification and password reset
 (need a mail provider).
 
@@ -165,10 +165,11 @@ button to `hello@thehealthylab.example`; prices from the current menu.
 ## 6. Deploy
 
 1. Supabase project `the-healthy-lab` (ap-southeast-1): role `thl_api`, schema `healthy_lab`, RLS
-   on; tables and demo data from `scripts/seed.py` run against the pooler.
+   on; tables and demo data from `seed.py` run against the pooler (`aws-0-ap-southeast-1`, port 6543).
 2. Vercel project `healthy-lab-api` (root `apps/api`): env `DATABASE_URL`, `JWT_SECRET`,
-   `ALLOWED_ORIGINS`, `ENV=production`. Deployed to its production URL so preview builds of the web
-   have a fixed backend (it serves JSON only).
+   `ENV=production` for Production and Preview. Vercel made the project's first CLI deploy its
+   production deployment, so the API answers at https://healthy-lab-api.vercel.app (JSON only,
+   `/docs` off); the web preview proxies to it.
 3. Vercel project `healthy-lab-web` (root `apps/web`): env `API_ORIGIN`; deployed as a **preview**.
    Promote with `vercel promote <url>` after review.
 4. GitHub: branch `redesign/nextjs-monorepo`, PR into `main`.

@@ -26,6 +26,9 @@ ACCESS_TTL = timedelta(minutes=15)
 REFRESH_TTL = timedelta(days=7)
 ACCESS_COOKIE = "thl_access"
 REFRESH_COOKIE = "thl_refresh"
+# Not a credential: "1" while a refresh session exists, readable by the web app so it can skip
+# session calls for guests and gate pages before render. The API never trusts it.
+HINT_COOKIE = "thl_session"
 REFRESH_PATH = "/api/auth"  # the path the browser sees on the web origin (proxied to /auth)
 CSRF_HEADER = "x-requested-with"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -111,12 +114,14 @@ def _set_cookies(response: Response, access: str, refresh: str) -> None:
     common = {"httponly": True, "secure": COOKIE_SECURE, "samesite": "lax"}
     response.set_cookie(ACCESS_COOKIE, access, max_age=int(ACCESS_TTL.total_seconds()), path="/", **common)
     response.set_cookie(REFRESH_COOKIE, refresh, max_age=int(REFRESH_TTL.total_seconds()), path=REFRESH_PATH, **common)
+    response.set_cookie(HINT_COOKIE, "1", max_age=int(REFRESH_TTL.total_seconds()), path="/", secure=COOKIE_SECURE, samesite="lax")
 
 
 def clear_session_cookies(response: Response) -> None:
     common = {"httponly": True, "secure": COOKIE_SECURE, "samesite": "lax"}
     response.delete_cookie(ACCESS_COOKIE, path="/", **common)
     response.delete_cookie(REFRESH_COOKIE, path=REFRESH_PATH, **common)
+    response.delete_cookie(HINT_COOKIE, path="/", secure=COOKIE_SECURE, samesite="lax")
 
 
 def issue_session(user: User, response: Response, session: Session) -> None:

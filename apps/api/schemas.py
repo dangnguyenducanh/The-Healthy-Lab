@@ -108,20 +108,20 @@ class FoodLabCustomPreviewRead(BaseModel):
 
 class OrderItemCreate(BaseModel):
     product_id: int | None = None
-    product_name: str | None = None
-    quantity: int = Field(gt=0)
+    product_name: str | None = Field(default=None, max_length=120)
+    quantity: int = Field(gt=0, le=50)
     unit_price: float | None = Field(default=None, gt=0)
     total_price: float | None = Field(default=None, gt=0)
-    custom_details: str | None = None
+    custom_details: str | None = Field(default=None, max_length=300)
     custom_food_lab: FoodLabCustomSelection | None = None
 
 
 class OrderCreate(BaseModel):
-    customer_name: str | None = None
-    customer_phone: str | None = None
-    delivery_address: str | None = None
-    note: str | None = None
-    items: list[OrderItemCreate]
+    customer_name: str | None = Field(default=None, max_length=80)
+    customer_phone: str | None = Field(default=None, max_length=32)
+    delivery_address: str | None = Field(default=None, max_length=200)
+    note: str | None = Field(default=None, max_length=300)
+    items: list[OrderItemCreate] = Field(max_length=30)
 
 
 class OrderItemRead(BaseModel):
@@ -283,11 +283,11 @@ class RestaurantTableRead(RestaurantTableCreate):
 
 class ReservationCreate(BaseModel):
     table_id: int | None = None
-    customer_name: str
-    customer_phone: str
+    customer_name: str = Field(min_length=1, max_length=80)
+    customer_phone: str = Field(min_length=3, max_length=32)
     party_size: int = Field(gt=0, le=12)
     reservation_time: datetime
-    note: str | None = None
+    note: str | None = Field(default=None, max_length=300)
     status: ReservationStatus = "booked"
 
 
@@ -310,8 +310,8 @@ class ReservationStatusUpdate(BaseModel):
 
 
 class QueueEntryCreate(BaseModel):
-    customer_name: str
-    customer_phone: str | None = None
+    customer_name: str = Field(min_length=1, max_length=80)
+    customer_phone: str | None = Field(default=None, max_length=32)
     party_size: int = Field(gt=0, le=12)
     status: QueueStatus = "waiting"
     wait_minutes: int = Field(default=0, ge=0)

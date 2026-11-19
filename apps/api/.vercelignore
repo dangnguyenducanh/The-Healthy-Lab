@@ -1,0 +1,11 @@
+.venv
+__pycache__
+*.db
+.env
+.env.*
+tests
+.pytest_cache
+.ruff_cache
+requirements-dev.txt
+Dockerfile
+self_check.py

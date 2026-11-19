@@ -1,124 +1,74 @@
-<div align="center">
-  <h2 align="center">The Healthy Lab</h2>
+# The Healthy Lab
 
-  The Healthy Lab is a fully responsive healthy food website, <br />built using HTML, CSS, and JavaScript.
+A healthy-food restaurant site with online ordering, a build-your-own bowl builder, table
+booking and staff dashboards. Next.js on the front, FastAPI on the back, Postgres on Supabase,
+deployed on Vercel.
 
-  <a href="https://ducanhthecodingbeast.github.io/The-Heallthy-Lab/"><strong>➥ Live Demo</strong></a>
+The full plan (directory tree, stack, API, security model, deploy) is in [docs/PLAN.md](docs/PLAN.md).
 
-</div>
+## Repository
 
-<br />
+```
+apps/web   Next.js 16 (App Router, TypeScript): public site + staff dashboards
+apps/api   FastAPI + SQLAlchemy: JSON API, JWT cookie auth
+docs/      PLAN.md
+.github/   CI: ruff + pytest, tsc + eslint + next build
+```
 
-### Run Locally
+## Run locally
 
-To run **The Healthy Lab** locally, run this command in your terminal:
+**Without Docker** (SQLite, fastest):
 
 ```bash
-git clone https://github.com/ducanhthecodingbeast/The-Heallthy-Lab.git
+cd apps/api && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 ```
-
-### Live Demo (GitHub Pages)
-
-To view the live demo online, this project uses GitHub Pages. 
-If the link above doesn't work yet, make sure GitHub Pages is enabled in your repository settings!
-
-### Run With Docker
-
-From the project folder, run:
 
 ```bash
-docker compose up --build
+cd apps/api && .venv/bin/python seed.py && COOKIE_SECURE=false .venv/bin/uvicorn main:app --port 8000
 ```
-
-Then open:
-
-```text
-http://localhost:5500
-```
-
-Backend API:
-
-```text
-http://localhost:8000
-```
-
-FastAPI docs:
-
-```text
-http://localhost:8000/docs
-```
-
-Seed backend mock data:
 
 ```bash
-docker compose exec backend python seed.py
+cd apps/web && npm install && API_ORIGIN=http://127.0.0.1:8000 npm run dev
 ```
 
-You can also build and run without Compose:
+Open http://localhost:3000. Demo accounts (local seed only), all with password `password123`:
+`customer@`, `admin@`, `chef@`, `cashier@`, `delivery@healthylab.test`.
+
+**With Docker** (Postgres):
 
 ```bash
-docker build -t the-healthy-lab .
-docker run --rm -p 5500:5500 the-healthy-lab
+docker compose up --build -d
 ```
-
-### VS Code Live Server
-
-The Live Server port is set to `5501` in `.vscode/settings.json` to avoid colliding with Docker on `5500`, so **Go Live** opens the site at:
-
-```text
-http://localhost:5501
-```
-
-### Backend
-
-The backend is a simple FastAPI + SQLite API for a school project. It uses Python, FastAPI, SQLAlchemy, SQLite, passlib bcrypt password hashing, and simple bearer-token authentication.
-
-It supports:
-
-- Register and login
-- Token-based authentication
-- Products
-- Orders
-- Customer, chef, delivery, and admin roles
-- Seed data for testing
-
-Seeded login accounts:
-
-| Role | Email | Password |
-| --- | --- | --- |
-| Admin | admin@healthylab.test | password123 |
-| Chef | chef@healthylab.test | password123 |
-| Delivery | delivery@healthylab.test | password123 |
-| Customer | customer@healthylab.test | password123 |
-
-Run only the backend locally:
 
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python seed.py
-uvicorn main:app --reload
+docker compose run --rm api python seed.py
 ```
 
-Backend endpoint summary:
+## Test
 
-- `POST /auth/register`
-- `POST /auth/login`
-- `GET /auth/me`
-- `GET /products`
-- `GET /products/{product_id}`
-- `POST /products`
-- `PUT /products/{product_id}`
-- `POST /orders`
-- `GET /orders/my`
-- `GET /orders`
-- `GET /orders/{order_id}`
-- `PUT /orders/{order_id}/status`
-- `GET /users`
-- `GET /admin/summary`
+```bash
+cd apps/api && .venv/bin/ruff check . && .venv/bin/python -m pytest -q
+```
 
-Frontend integration is intentionally not implemented in this backend-only pass. The next frontend coding agent should read [FRONTEND_AGENT_TASKS.md](./docs/frontend/FRONTEND_AGENT_TASKS.md).
+```bash
+cd apps/web && npx tsc --noEmit && npx eslint . && npm run build
+```
 
-More manual API tests are in [TESTING.md](./TESTING.md).
+## Security in short
+
+- JWT access (15 min) and refresh (7 days) tokens in `HttpOnly; Secure; SameSite=Lax` cookies;
+  refresh tokens are rotated and a reused one ends every session of that user.
+- Writes need `X-Requested-With: fetch` (CSRF); logins lock for 15 minutes after 5 failures.
+- Roles are checked by the API on every request; the dashboards only hide what it would refuse.
+- Per-request nonce Content-Security-Policy, HSTS and the usual headers on the web; the API sends
+  its own strict headers and hides `/docs` in production.
+- The API logs in to Postgres as its own role in its own schema, with row level security on and
+  nothing granted to Supabase's public keys.
+
+Details: [docs/PLAN.md, section 4](docs/PLAN.md#4-security-and-jwt-auth).
+
+## Deploy
+
+Two Vercel projects from this repo: `healthy-lab-api` (root `apps/api`, env `DATABASE_URL`,
+`JWT_SECRET`, `ENV=production`) and `healthy-lab-web` (root `apps/web`, env `API_ORIGIN` = the API
+URL). See [docs/PLAN.md, section 6](docs/PLAN.md#6-deploy).

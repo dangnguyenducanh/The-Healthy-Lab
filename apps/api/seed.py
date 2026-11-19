@@ -110,16 +110,16 @@ VOUCHERS = [
 
 
 PRODUCTS = [
-    ("Avocado Quinoa Bowl", "bowls", "Quinoa, avocado, chickpeas, greens, and lemon tahini.", 8.50, 520, "/images/food-menu-1.png"),
-    ("Salmon Power Bowl", "bowls", "Grilled salmon, brown rice, edamame, cucumber, and sesame.", 10.90, 610, "/images/food-menu-2.png"),
-    ("Chicken Protein Bowl", "bowls", "Grilled chicken, sweet potato, broccoli, and herb sauce.", 9.50, 580, "/images/food-menu-3.png"),
-    ("Garden Wrap", "wraps", "Whole-grain wrap with hummus, cucumber, carrot, and greens.", 6.80, 390, "/images/food-menu-4.png"),
-    ("Turkey Avocado Wrap", "wraps", "Turkey breast, avocado, tomato, greens, and yogurt sauce.", 7.90, 430, "/images/food-menu-5.png"),
-    ("Rainbow Salad", "salads", "Mixed greens, beetroot, tomato, cucumber, radish, and seeds.", 6.50, 310, "/images/food-menu-6.png"),
-    ("Greek Chickpea Salad", "salads", "Chickpeas, cucumber, tomato, olives, feta, and herbs.", 7.20, 360, "/images/promo-4.png"),
-    ("Berry Protein Smoothie", "smoothies", "Berries, banana, almond milk, and plant protein.", 5.90, 280, "/images/promo-2.png"),
-    ("Green Detox Smoothie", "smoothies", "Spinach, apple, cucumber, lemon, and ginger.", 5.50, 220, "/images/promo-3.png"),
-    ("Cold Pressed Orange Juice", "juices", "Fresh orange juice pressed daily.", 4.20, 160, "/images/promo-1.png"),
+    ("Avocado Quinoa Bowl", "bowls", "Quinoa, avocado, chickpeas, greens, and lemon tahini.", 8.50, 520, "/images/food-menu-5.jpg"),
+    ("Salmon Power Bowl", "bowls", "Grilled salmon, brown rice, edamame, cucumber, and sesame.", 10.90, 610, "/images/mistral-bowl.jpg"),
+    ("Chicken Protein Bowl", "bowls", "Grilled chicken, sweet potato, broccoli, and herb sauce.", 9.50, 580, "/images/promo-5.jpg"),
+    ("Garden Wrap", "wraps", "Whole-grain wrap with hummus, cucumber, carrot, and greens.", 6.80, 390, "/images/food-menu-3.jpg"),
+    ("Turkey Avocado Wrap", "wraps", "Turkey breast, avocado, tomato, greens, and yogurt sauce.", 7.90, 430, "/images/sandwich.jpg"),
+    ("Rainbow Salad", "salads", "Mixed greens, beetroot, tomato, cucumber, radish, and seeds.", 6.50, 310, "/images/food-menu-6.jpg"),
+    ("Greek Chickpea Salad", "salads", "Chickpeas, cucumber, tomato, olives, feta, and herbs.", 7.20, 360, "/images/promo-4.jpg"),
+    ("Berry Protein Smoothie", "smoothies", "Berries, banana, almond milk, and plant protein.", 5.90, 280, "/images/promo-2.jpg"),
+    ("Green Detox Smoothie", "smoothies", "Spinach, apple, cucumber, lemon, and ginger.", 5.50, 220, "/images/food-menu-1.jpg"),
+    ("Cold Pressed Orange Juice", "juices", "Fresh orange juice pressed daily.", 4.20, 160, "/images/food-menu-2.jpg"),
 ]
 
 
