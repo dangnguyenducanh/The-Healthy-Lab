@@ -1,0 +1,38 @@
+/* Brand tokens: start.mjs brand --page place, Source Serif 4 / Libre Franklin. Keep as printed. */
+:root {
+  --p-bg: #f7f3ec; --p-surface: #ede6da; --p-ink: #2a2622; --p-muted: #665e55;
+  --p-accent: #1f6b3f; --p-accent-ink: #f7f3ec; --p-action: #1f6b3f; --p-action-ink: #f7f3ec;
+  --p-inv-bg: #2a2622; --p-inv-surface: #36322e; --p-inv-ink: #f7f3ec; --p-inv-muted: #a29e98;
+  --p-inv-accent: #f7f3ec; --p-inv-accent-ink: #2a2622; --p-inv-action: #f7f3ec; --p-inv-action-ink: #2a2622;
+  --font-display: var(--ff-display), "Source Serif 4", Georgia, serif;
+  --font-text: var(--ff-text), "Libre Franklin", system-ui, sans-serif;
+  --display-weight: 400;
+  --display-tracking: -0.02em;
+}
+
+/* The one display-type moment: the street and district set large under the visit heading. */
+.type-moment {
+  font: var(--display-weight) clamp(48px, 7vw, 104px) / 1.02 var(--font-display);
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+.type-moment a { color: inherit; text-decoration: none; }
+
+/* Messages under forms: one style for errors and confirmations across the app. */
+.form-note { font-size: 14px; margin: 0; }
+.form-note[data-tone="error"] { color: #a1261b; }
+.form-note[data-tone="ok"] { color: var(--p-accent); }
+
+/* Home: the menu's detail strip, four 1:1 photographs line to line; two-up on a phone. */
+@media (min-width: 640px) and (max-width: 1023px) { .strip { grid-template-columns: repeat(4, minmax(0, 1fr)); } .strip > * { grid-column: auto; } }
+@media (max-width: 639px) { .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } .strip > * { grid-column: auto; } }
+.strip > .pl-photo > img { width: 100%; height: auto; }
+
+/* Home: Food Lab kinds as tall tiles on a desktop, 4:3 when they stack. */
+@media (min-width: 1024px) { .lab-tiles .tile { --tile-ratio: 4 / 5; } }
+
+/* Head row: the aside's last line sits on the h2's baseline; stacked under 1024. */
+.head-row { align-items: end; }
+.head-row > h2 { margin: 0; }
+.head-row__aside > p { margin: 0; }
+@media (max-width: 1023px) { .head-row > * { grid-column: 1 / -1; } }

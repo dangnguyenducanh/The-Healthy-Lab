@@ -1,0 +1,21 @@
+/* Flowing pages (journal, privacy, terms): the kit fixes a section to the screen's height; these grow with their text. */
+main > :is(section, article).flow { height: auto; }
+
+.meta { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.head { margin-bottom: var(--s-7); }
+.head > * + * { margin-top: var(--s-4); }
+
+.body > * + * { margin-top: var(--s-4); }
+.body h2 { font-size: var(--t-h3); line-height: 1.2; margin-top: var(--s-7); }
+.body h2 + * { margin-top: var(--s-3); }
+.body ul { list-style: disc; padding-left: var(--s-5); }
+.body li + li { margin-top: var(--s-2); }
+.body blockquote {
+  margin-top: var(--s-6); padding-left: var(--s-5); border-left: 2px solid var(--accent);
+  font: var(--display-weight) var(--t-lead) / 1.4 var(--font-display); letter-spacing: var(--display-tracking);
+}
+.body blockquote + * { margin-top: var(--s-6); }
+.body a { text-decoration: underline; text-underline-offset: 3px; }
+
+.photo { margin-bottom: var(--s-7); }
+.more { margin-bottom: var(--s-6); }
