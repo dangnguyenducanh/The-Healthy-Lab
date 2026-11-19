@@ -1,29 +1,44 @@
+# Local stack: Postgres + FastAPI + Next.js. First run:
+#   docker compose up --build -d
+#   docker compose run --rm api python seed.py     # tables + demo data (password123)
+# Then open http://localhost:3000
 services:
-  frontend:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
-    ports:
-      - "5500:5500"
-    volumes:
-      - ./frontend/public:/usr/share/nginx/html:ro
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-  backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - healthy_lab_db:/app/data
+  db:
+    image: postgres:17-alpine
     environment:
-      - DATABASE_URL=sqlite:////app/data/healthy_lab.db
-      - SECRET_KEY=school-project-secret
-    restart: unless-stopped
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: healthy_lab
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./apps/api
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/healthy_lab
+      JWT_SECRET: local-docker-secret-change-me-0123456789abcdef
+      COOKIE_SECURE: "false"
+      ALLOWED_ORIGINS: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8600:8000"
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        API_ORIGIN: http://api:8000
+    environment:
+      API_ORIGIN: http://api:8000
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
 
 volumes:
-  healthy_lab_db:
+  db:
