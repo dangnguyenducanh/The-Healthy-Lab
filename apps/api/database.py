@@ -49,6 +49,7 @@ SQLITE_SCHEMA_PATCHES = {
     ],
     "users": [
         ("is_active", "ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"),
+        ("sessions_valid_after", "ALTER TABLE users ADD COLUMN sessions_valid_after DATETIME"),
     ],
 }
 

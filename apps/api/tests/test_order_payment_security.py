@@ -244,8 +244,9 @@ def test_customer_payment_authorization_and_amount_validation(session: Session):
     )
 
     other_customer = add_customer(session, "payer@healthylab.test")
+    # Another customer's order looks like no order at all (404), so its state never leaks.
     assert_http_error(
-        403,
+        404,
         lambda: create_payment(
             PaymentCreate(order_id=order.id, amount=order.total_price, method="card", status="pending"),
             session,

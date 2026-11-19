@@ -34,6 +34,9 @@ CSRF_HEADER = "x-requested-with"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 MAX_FAILED_LOGINS = 5
 LOCKOUT = timedelta(minutes=15)
+# Two tabs refreshing at the same moment both present the same refresh token; the later one inside
+# this window is a race, not theft, so it fails quietly instead of ending every session.
+REUSE_GRACE = timedelta(seconds=30)
 # Hash of a throwaway password: checked when the email is unknown, so both cases take bcrypt time.
 _DUMMY_HASH = "$2b$12$Ybs.zRGEU.3UESf2yBxmae3ly11PSBnhiY2WJJ/Pi74to1FZsqfLq"
 
@@ -124,6 +127,13 @@ def clear_session_cookies(response: Response) -> None:
     response.delete_cookie(HINT_COOKIE, path="/", secure=COOKIE_SECURE, samesite="lax")
 
 
+class SessionEnded(HTTPException):
+    """A refresh that must also clear the browser's session cookies (the router turns it into a response)."""
+
+    def __init__(self, detail: str):
+        super().__init__(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail)
+
+
 def issue_session(user: User, response: Response, session: Session) -> None:
     """New access + refresh pair as cookies; the refresh jti is stored hashed. Caller commits."""
     access, _, _ = _encode(user, "access", ACCESS_TTL)
@@ -133,22 +143,39 @@ def issue_session(user: User, response: Response, session: Session) -> None:
 
 
 def rotate_session(refresh_token: str, response: Response, session: Session) -> User:
-    payload = decode_token(refresh_token, "refresh")
+    try:
+        payload = decode_token(refresh_token, "refresh")
+    except HTTPException as exc:
+        raise SessionEnded(exc.detail) from exc
     row = session.query(RefreshToken).filter(RefreshToken.jti_hash == _hash_jti(payload["jti"])).first()
     if row is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
-    if row.revoked_at is not None:
-        # A refresh token used twice was copied: end every session of that user.
+        raise SessionEnded("Invalid session")
+
+    # Claim the token atomically: of two concurrent refreshes only one can flip revoked_at.
+    now = _db_now()
+    claimed = (
+        session.query(RefreshToken)
+        .filter(RefreshToken.id == row.id, RefreshToken.revoked_at.is_(None))
+        .update({"revoked_at": now}, synchronize_session=False)
+    )
+    if not claimed:
+        session.rollback()
+        revoked_at = session.query(RefreshToken.revoked_at).filter(RefreshToken.id == row.id).scalar()
+        if revoked_at is not None and now - revoked_at < REUSE_GRACE:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session was just refreshed")
+        # A refresh token used again later was copied: end every session of that user, including
+        # access tokens already handed out.
         session.query(RefreshToken).filter(
             RefreshToken.user_id == row.user_id, RefreshToken.revoked_at.is_(None)
-        ).update({"revoked_at": _db_now()})
+        ).update({"revoked_at": now}, synchronize_session=False)
+        session.query(User).filter(User.id == row.user_id).update({"sessions_valid_after": now}, synchronize_session=False)
         session.commit()
-        clear_session_cookies(response)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
+        raise SessionEnded("Session revoked")
+
     user = session.get(User, row.user_id)
     if user is None or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
-    row.revoked_at = _db_now()
+        session.rollback()
+        raise SessionEnded("Invalid session")
     issue_session(user, response, session)
     session.commit()
     return user
@@ -169,14 +196,20 @@ def revoke_session(refresh_token: str | None, session: Session) -> None:
 
 # ------------------------------------------------------------------ login throttling
 
-def ensure_login_allowed(email: str, session: Session) -> None:
-    since = _db_now() - LOCKOUT
-    failures = (
+def begin_login_attempt(email: str, session: Session) -> None:
+    """Record the attempt before the password is checked, so parallel guesses all count, then refuse
+    the sixth and later attempts on that email within LOCKOUT. Rows older than LOCKOUT are purged."""
+    now = _db_now()
+    since = now - LOCKOUT
+    session.query(LoginAttempt).filter(LoginAttempt.created_at < since).delete(synchronize_session=False)
+    session.add(LoginAttempt(email=email, created_at=now))
+    session.commit()
+    attempts = (
         session.query(func.count(LoginAttempt.id))
         .filter(LoginAttempt.email == email, LoginAttempt.created_at >= since)
         .scalar()
     )
-    if failures >= MAX_FAILED_LOGINS:
+    if attempts > MAX_FAILED_LOGINS:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many failed sign-in attempts. Try again in 15 minutes.",
@@ -184,12 +217,9 @@ def ensure_login_allowed(email: str, session: Session) -> None:
         )
 
 
-def record_login(email: str, success: bool, session: Session) -> None:
-    """Failures are stored; a success clears them. Caller commits."""
-    if success:
-        session.query(LoginAttempt).filter(LoginAttempt.email == email).delete()
-    else:
-        session.add(LoginAttempt(email=email, created_at=_db_now()))
+def clear_login_attempts(email: str, session: Session) -> None:
+    """A successful sign-in forgets that email's attempts. Caller commits."""
+    session.query(LoginAttempt).filter(LoginAttempt.email == email).delete(synchronize_session=False)
 
 
 def authenticate(email: str, password: str, session: Session) -> User | None:
@@ -226,6 +256,10 @@ def get_current_user(request: Request, session: Session = Depends(get_session)) 
     user = session.get(User, int(payload["sub"]))
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not signed in")
+    if user.sessions_valid_after is not None:
+        issued = datetime.fromtimestamp(payload["iat"], timezone.utc).replace(tzinfo=None)
+        if issued < user.sessions_valid_after:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
     return user
 
 

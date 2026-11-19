@@ -23,6 +23,8 @@ class User(Base):
     phone = Column(String, nullable=True)
     address = Column(String, nullable=True)
     is_active = Column(Boolean, default=True, server_default=true(), nullable=False)
+    # Access tokens issued before this moment are refused (set when a stolen refresh token is detected).
+    sessions_valid_after = Column(DateTime, nullable=True)
 
 
 class RefreshToken(Base):

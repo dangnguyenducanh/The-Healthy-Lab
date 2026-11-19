@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -108,6 +108,26 @@ def list_reservations(
     return apply_pagination(query.order_by(Reservation.reservation_time.desc()), limit, offset).all()
 
 
+MAX_OPEN_RESERVATIONS = 3
+BOOKING_WINDOW = timedelta(days=90)
+
+
+def ensure_customer_can_book(data: ReservationCreate, user: User, session: Session) -> None:
+    """Customers book from now (with a day of slack for time zones) up to 90 days ahead, and hold
+    at most three upcoming bookings, so nobody can reserve every table."""
+    now = datetime.utcnow()
+    when = data.reservation_time.replace(tzinfo=None)
+    if when < now - timedelta(days=1) or when > now + BOOKING_WINDOW:
+        raise HTTPException(status_code=400, detail="Book a time between now and 90 days ahead")
+    upcoming = (
+        session.query(Reservation)
+        .filter(Reservation.user_id == user.id, Reservation.status == "booked", Reservation.reservation_time >= now - timedelta(days=1))
+        .count()
+    )
+    if upcoming >= MAX_OPEN_RESERVATIONS:
+        raise HTTPException(status_code=400, detail="You already have three upcoming bookings")
+
+
 @router.post("/reservations", response_model=ReservationRead, status_code=status.HTTP_201_CREATED)
 def create_reservation(
     data: ReservationCreate,
@@ -118,6 +138,8 @@ def create_reservation(
         raise HTTPException(status_code=403, detail="Customers can only create booked reservations")
     if data.status not in RESERVATION_STATUSES:
         raise HTTPException(status_code=400, detail="Invalid reservation status")
+    if current_user.role == "customer":
+        ensure_customer_can_book(data, current_user, session)
 
     table = find_table_for_reservation(data, session)
     reservation = Reservation(
@@ -212,7 +234,10 @@ def create_queue_entry(
     )
     if open_entry and current_user.role == "customer":
         raise HTTPException(status_code=400, detail="You already have an active queue entry")
-    entry = QueueEntry(user_id=current_user.id, **data.model_dump())
+    values = data.model_dump()
+    if current_user.role == "customer":
+        values["wait_minutes"] = 0  # the front desk sets the estimate, not the guest
+    entry = QueueEntry(user_id=current_user.id, **values)
     session.add(entry)
     session.commit()
     session.refresh(entry)

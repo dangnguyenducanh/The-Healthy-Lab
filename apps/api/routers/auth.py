@@ -1,15 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from auth import (
     REFRESH_COOKIE,
+    SessionEnded,
     authenticate,
+    begin_login_attempt,
+    clear_login_attempts,
     clear_session_cookies,
-    ensure_login_allowed,
     get_current_user,
     hash_password,
     issue_session,
-    record_login,
     require_csrf_header,
     revoke_session,
     rotate_session,
@@ -48,12 +50,11 @@ def register(data: UserCreate, response: Response, session: Session = Depends(ge
 @router.post("/auth/login", response_model=UserRead)
 def login(data: LoginRequest, response: Response, session: Session = Depends(get_session)):
     email = data.email.strip().lower()
-    ensure_login_allowed(email, session)
+    begin_login_attempt(email, session)
     user = authenticate(email, data.password, session)
-    record_login(email, user is not None, session)
     if user is None:
-        session.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    clear_login_attempts(email, session)
     issue_session(user, response, session)
     session.commit()
     return user
@@ -65,7 +66,13 @@ def refresh(request: Request, response: Response, session: Session = Depends(get
     token = request.cookies.get(REFRESH_COOKIE)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not signed in")
-    return rotate_session(token, response, session)
+    try:
+        return rotate_session(token, response, session)
+    except SessionEnded as exc:
+        # Raising would drop the cookie headers, so answer directly and clear the session cookies.
+        ended = JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        clear_session_cookies(ended)
+        return ended
 
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)

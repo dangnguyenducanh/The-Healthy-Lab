@@ -13,7 +13,7 @@ def find_table_for_reservation(data: ReservationCreate, session: Session) -> Res
 
     if data.table_id:
         table = session.get(RestaurantTable, data.table_id)
-        tables = [table] if table else []
+        tables = [table] if table and table.status == "available" else []
     else:
         tables = (
             session.query(RestaurantTable)

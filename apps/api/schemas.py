@@ -314,7 +314,7 @@ class QueueEntryCreate(BaseModel):
     customer_phone: str | None = Field(default=None, max_length=32)
     party_size: int = Field(gt=0, le=12)
     status: QueueStatus = "waiting"
-    wait_minutes: int = Field(default=0, ge=0)
+    wait_minutes: int = Field(default=0, ge=0, le=240)
 
 
 class QueueEntryRead(BaseModel):

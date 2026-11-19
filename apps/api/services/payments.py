@@ -12,6 +12,9 @@ PAYMENT_RECONCILE_ROLES = {"admin", "cashier"}
 def validate_payment(data: PaymentCreate, order: Order | None, current_user: User, session: Session | None = None) -> Order:
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    # Ownership first, so another customer's order reveals nothing about its state.
+    if current_user.role == "customer" and order.customer_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Order not found")
     if order.status == "cancelled":
         raise HTTPException(status_code=400, detail="Cannot create payment for a cancelled order")
     if data.amount <= 0:

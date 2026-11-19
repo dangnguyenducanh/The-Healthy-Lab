@@ -64,7 +64,7 @@ deploy first, old `frontend/` and `tools/` removed (git history keeps them).
 ## 3. API
 
 Base path: the browser calls `/api/...` on the web origin; the web rewrites it to the API project.
-All bodies JSON. Lists are plain arrays with `?limit=Lists take `?page=&page_size=` (see `pagination.py`)offset=` (limit 1 to 200, see `pagination.py`).
+All bodies JSON. Lists are plain arrays with `?limit=&offset=` (limit 1 to 200, see `pagination.py`).
 
 | Area | Endpoints | Who |
 |---|---|---|

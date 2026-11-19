@@ -9,6 +9,8 @@ db_path = Path(tempfile.gettempdir()) / f"healthy_lab_pytest_{os.getpid()}.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
 os.environ["COOKIE_SECURE"] = "false"  # the test client talks plain http
 
+from datetime import timedelta  # noqa: E402
+
 import jwt  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -17,6 +19,8 @@ from auth import ACCESS_COOKIE, REFRESH_COOKIE  # noqa: E402
 from config import JWT_SECRET  # noqa: E402
 from database import create_db_and_tables, engine  # noqa: E402
 from main import app  # noqa: E402
+from models import RefreshToken  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
 CSRF = {"X-Requested-With": "fetch"}
 PASSWORD = "correct horse 42"
@@ -76,17 +80,40 @@ def test_tampered_or_unsigned_token_is_refused(client):
 
 
 def test_refresh_rotates_and_reuse_revokes_every_session(client):
-    first = cookies_of(register(client))[REFRESH_COOKIE]
+    registered = register(client)
+    first = cookies_of(registered)[REFRESH_COOKIE]
+    old_access = cookies_of(registered)[ACCESS_COOKIE]
     rotated = client.post("/auth/refresh", headers={**CSRF, "Cookie": f"{REFRESH_COOKIE}={first}"})
     assert rotated.status_code == 200
     second = cookies_of(rotated)[REFRESH_COOKIE]
     assert second != first
 
+    # Inside the grace window a second use is a two-tab race: refused, nothing else ends.
+    race = client.post("/auth/refresh", headers={**CSRF, "Cookie": f"{REFRESH_COOKIE}={first}"})
+    assert race.status_code == 401 and race.json()["detail"] == "Session was just refreshed"
+
+    # Later reuse means the token was copied: every session ends, access tokens included.
+    with Session(engine) as db:
+        for row in db.query(RefreshToken).filter(RefreshToken.revoked_at.is_not(None)):
+            row.revoked_at -= timedelta(minutes=5)
+        db.commit()
     reused = client.post("/auth/refresh", headers={**CSRF, "Cookie": f"{REFRESH_COOKIE}={first}"})
-    assert reused.status_code == 401
-    # the theft signal ended the newer session too
+    assert reused.status_code == 401 and reused.json()["detail"] == "Session revoked"
+    cleared = ";".join(reused.headers.get_list("set-cookie")).lower()
+    assert f"{ACCESS_COOKIE}=" in cleared and "max-age=0" in cleared
     after = client.post("/auth/refresh", headers={**CSRF, "Cookie": f"{REFRESH_COOKIE}={second}"})
     assert after.status_code == 401
+    me = client.get("/auth/me", headers={"Authorization": f"Bearer {old_access}"})
+    assert me.status_code == 401
+
+
+def test_payment_and_queue_limits_for_customers(client):
+    access = cookies_of(register(client))[ACCESS_COOKIE]
+    auth = {"Authorization": f"Bearer {access}"}
+    joined = client.post("/queue", json={"customer_name": "Ana", "party_size": 2, "wait_minutes": 240}, headers=auth)
+    assert joined.status_code == 201 and joined.json()["wait_minutes"] == 0
+    too_long = client.post("/queue", json={"customer_name": "Ana", "party_size": 2, "wait_minutes": 10**9}, headers=auth)
+    assert too_long.status_code == 422
 
 
 def test_logout_revokes_refresh_token(client):

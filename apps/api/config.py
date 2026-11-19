@@ -3,12 +3,15 @@
 import os
 
 ENV = os.getenv("ENV", "development")
-IS_PROD = ENV == "production"
+# Fail closed: anything running on Vercel is production even if ENV was forgotten.
+IS_PROD = ENV == "production" or bool(os.getenv("VERCEL"))
 
 JWT_SECRET = os.getenv("JWT_SECRET", "")
+_db_url = os.getenv("DATABASE_URL", "")
 if not JWT_SECRET:
-    if IS_PROD:
-        raise RuntimeError("JWT_SECRET must be set in production")
+    # The built-in dev secret is public (it is in this file), so only a local SQLite run may use it.
+    if IS_PROD or (_db_url and not _db_url.startswith("sqlite")):
+        raise RuntimeError("JWT_SECRET must be set outside local SQLite development")
     JWT_SECRET = "dev-only-secret-not-for-production-0123456789abcdef"
 if IS_PROD and len(JWT_SECRET) < 32:
     raise RuntimeError("JWT_SECRET must be at least 32 characters")
