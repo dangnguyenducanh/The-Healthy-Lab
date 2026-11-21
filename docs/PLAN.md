@@ -167,9 +167,9 @@ button to `hello@thehealthylab.example`; prices from the current menu.
 1. Supabase project `the-healthy-lab` (ap-southeast-1): role `thl_api`, schema `healthy_lab`, RLS
    on; tables and demo data from `seed.py` run against the pooler (`aws-0-ap-southeast-1`, port 6543).
 2. Vercel project `healthy-lab-api` (root `apps/api`): env `DATABASE_URL`, `JWT_SECRET`,
-   `ENV=production` for Production and Preview. Vercel made the project's first CLI deploy its
-   production deployment, so the API answers at https://healthy-lab-api.vercel.app (JSON only,
-   `/docs` off); the web preview proxies to it.
-3. Vercel project `healthy-lab-web` (root `apps/web`): env `API_ORIGIN`; deployed as a **preview**.
-   Promote with `vercel promote <url>` after review.
-4. GitHub: branch `redesign/nextjs-monorepo`, PR into `main`.
+   `ENV=production`. Production: https://healthy-lab-api.vercel.app (JSON only, `/docs` off).
+3. Vercel project `healthy-lab-web` (root `apps/web`): env `API_ORIGIN`
+   (https://healthy-lab-api.vercel.app) and `SITE_URL`. Production: https://healthy-lab-web.vercel.app.
+   Both deployed to production from `main` on 2026-11-21 (Vercel assigns a project's first deploy
+   to production; previews follow with `vercel deploy`).
+4. GitHub: `dangnguyenducanh/The-Healthy-Lab`; the rebuild landed in `main` through PR #1.

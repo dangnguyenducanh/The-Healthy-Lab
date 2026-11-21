@@ -4,47 +4,48 @@
 restaurant, with online ordering, a build-your-own bowl builder, table booking and staff
 dashboards.
 
+### [Live demo: healthy-lab-web.vercel.app](https://healthy-lab-web.vercel.app)
+
 ![The Healthy Lab home page](docs/screenshots/home.jpg)
 
-## What it does
+## Live demo
 
-- **For guests:** browse the menu with prices, build a custom bowl (priced live by the server),
-  order for collection or delivery, book a table or join the walk-in queue, read the journal.
-- **For customers with an account:** sign in, see order history and bookings.
-- **For staff:** role-based dashboards for the kitchen (order queue, stock, recipes), the cashier
-  (payments, reservations, queue), delivery, the dining room and the admin (summary, menu,
-  accounts, suppliers).
-
-## Screenshots
-
-| Find us and opening hours | Menu and prices |
+| | |
 |---|---|
-| ![Visit section](docs/screenshots/home-visit.jpg) | ![Menu section on the home page](docs/screenshots/home-menu.jpg) |
-| **Full menu** | **Build your own (Food Lab)** |
-| ![Menu page](docs/screenshots/menu.jpg) | ![Food Lab builder](docs/screenshots/food-lab.jpg) |
-| **Journal** | **Kitchen dashboard** |
-| ![Journal article](docs/screenshots/journal.jpg) | ![Kitchen dashboard](docs/screenshots/dashboard-kitchen.jpg) |
-| **Admin dashboard** | **On a phone** |
-| ![Admin dashboard](docs/screenshots/dashboard-admin.jpg) | <img src="docs/screenshots/phone-home.jpg" alt="Home page on a phone" width="190"> <img src="docs/screenshots/phone-sign-in.jpg" alt="Sign in on a phone" width="190"> |
+| Website | https://healthy-lab-web.vercel.app |
+| API status | https://healthy-lab-api.vercel.app/health |
+
+Things to try: browse the [menu](https://healthy-lab-web.vercel.app/menu), build a bowl in the
+[Food Lab](https://healthy-lab-web.vercel.app/food-lab) (the server prices it as you pick), then
+[create an account](https://healthy-lab-web.vercel.app/register) to place an order or
+[book a table](https://healthy-lab-web.vercel.app/reservations). The staff dashboards need a staff
+account, which is not public on the live demo; run the project locally to try them with the demo
+accounts below.
 
 ## Architecture
 
-Two apps in one repository, each deployed as its own Vercel project, with Postgres on Supabase.
+Two apps in one repository, each deployed as its own Vercel project, with Postgres on Supabase:
+
+- **Web** (`apps/web`, Next.js) at https://healthy-lab-web.vercel.app: renders every page and
+  forwards `/api/*` to the API.
+- **API** (`apps/api`, FastAPI) at https://healthy-lab-api.vercel.app: business rules, sign-in,
+  roles and all data access.
+- **Database** (Supabase Postgres): orders, menu, payments, bookings, stock and accounts.
 
 ```mermaid
 flowchart LR
     B["Browser"] -->|"pages"| W
     B -->|"/api/* (same origin, cookies)"| W
 
-    subgraph V1["Vercel: healthy-lab-web"]
+    subgraph V1["Vercel: healthy-lab-web.vercel.app"]
         W["Next.js 16<br/>proxy.ts: CSP nonce, page gate<br/>server components: menu, journal"]
     end
 
-    subgraph V2["Vercel: healthy-lab-api"]
+    subgraph V2["Vercel: healthy-lab-api.vercel.app"]
         A["FastAPI<br/>JWT auth, roles, CSRF check<br/>orders, payments, bookings, stock"]
     end
 
-    subgraph S["Supabase"]
+    subgraph S["Supabase (ap-southeast-1)"]
         D[("Postgres 17<br/>schema healthy_lab<br/>role thl_api, RLS on")]
     end
 
@@ -80,6 +81,27 @@ sequenceDiagram
     A-->>B: the user's own orders only
     Note over B,A: when the access token expires, the client calls /auth/refresh once:<br/>the refresh token is rotated, and a reused one ends every session
 ```
+
+## What it does
+
+- **For guests:** browse the menu with prices, build a custom bowl (priced live by the server),
+  order for collection or delivery, book a table or join the walk-in queue, read the journal.
+- **For customers with an account:** sign in, see order history and bookings.
+- **For staff:** role-based dashboards for the kitchen (order queue, stock, recipes), the cashier
+  (payments, reservations, queue), delivery, the dining room and the admin (summary, menu,
+  accounts, suppliers).
+
+## Screenshots
+
+| Find us and opening hours | Menu and prices |
+|---|---|
+| ![Visit section](docs/screenshots/home-visit.jpg) | ![Menu section on the home page](docs/screenshots/home-menu.jpg) |
+| **Full menu** | **Build your own (Food Lab)** |
+| ![Menu page](docs/screenshots/menu.jpg) | ![Food Lab builder](docs/screenshots/food-lab.jpg) |
+| **Journal** | **Kitchen dashboard** |
+| ![Journal article](docs/screenshots/journal.jpg) | ![Kitchen dashboard](docs/screenshots/dashboard-kitchen.jpg) |
+| **Admin dashboard** | **On a phone** |
+| ![Admin dashboard](docs/screenshots/dashboard-admin.jpg) | <img src="docs/screenshots/phone-home.jpg" alt="Home page on a phone" width="190"> <img src="docs/screenshots/phone-sign-in.jpg" alt="Sign in on a phone" width="190"> |
 
 ## Tech stack
 
@@ -175,9 +197,15 @@ cd apps/web && npx tsc --noEmit && npx eslint . && npm run build
 
 ## Deploy
 
-Two Vercel projects from this repository: `healthy-lab-api` (root `apps/api`, env `DATABASE_URL`,
-`JWT_SECRET`, `ENV=production`) and `healthy-lab-web` (root `apps/web`, env `API_ORIGIN` set to the
-API's URL). Details in [docs/PLAN.md, section 6](docs/PLAN.md#6-deploy).
+Live on Vercel as two projects from this repository:
+
+| Project | Root | Production URL | Environment variables |
+|---|---|---|---|
+| `healthy-lab-web` | `apps/web` | https://healthy-lab-web.vercel.app | `API_ORIGIN`, `SITE_URL` |
+| `healthy-lab-api` | `apps/api` | https://healthy-lab-api.vercel.app | `DATABASE_URL`, `JWT_SECRET`, `ENV=production` |
+
+Deploy a new version from the app's folder with `npx vercel deploy --prod`. Details in
+[docs/PLAN.md, section 6](docs/PLAN.md#6-deploy).
 
 ---
 
